@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Spam Classifier</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #555;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="file"], input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        .spam {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .ham {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>📧 Email Spam Classifier</h1>
+    
+    <!-- Health Check -->
+    <div class="container">
+        <h2>🔍 System Status</h2>
+        <div id="health-status" class="loading">Checking system status...</div>
+    </div>
+
+    <!-- Training Section -->
+    <div class="container">
+        <h2>🚀 Train Model</h2>
+        <form id="train-form">
+            <div class="form-group">
+                <label for="spam-files">Spam Email Files:</label>
+                <input type="file" id="spam-files" name="spam_files" multiple accept=".txt,.eml">
+            </div>
+            <div class="form-group">
+                <label for="ham-files">Ham (Legitimate) Email Files:</label>
+                <input type="file" id="ham-files" name="ham_files" multiple accept=".txt,.eml">
+            </div>
+            <button type="submit" id="train-btn">Train Model</button>
+        </form>
+        <div id="train-result"></div>
+    </div>
+
+    <!-- Single Prediction Section -->
+    <div class="container">
+        <h2>🔮 Predict Single Email</h2>
+        <form id="predict-form">
+            <div class="form-group">
+                <label for="email-text">Email Text:</label>
+                <textarea id="email-text" name="email_text" placeholder="Enter email text here..."></textarea>
+            </div>
+            <button type="submit" id="predict-btn" disabled>Predict</button>
+        </form>
+        <div id="predict-result"></div>
+    </div>
+
+    <!-- Batch Prediction Section -->
+    <div class="container">
+        <h2>📊 Batch Prediction</h2>
+        <form id="batch-form">
+            <div class="form-group">
+                <label for="batch-emails">Email Texts (one per line):</label>
+                <textarea id="batch-emails" name="emails" placeholder="Enter multiple emails, one per line..."></textarea>
+            </div>
+            <button type="submit" id="batch-btn" disabled>Predict Batch</button>
+        </form>
+        <div id="batch-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        // Check health status on page load
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                const healthDiv = document.getElementById('health-status');
+                if (data.status === 'healthy') {
+                    healthDiv.innerHTML = `
+                        <div class="success">
+                            ✅ System is healthy<br>
+                            Model loaded: ${data.model_loaded ? '✅ Yes' : '❌ No'}
+                        </div>
+                    `;
+                    
+                    // Enable/disable prediction buttons based on model status
+                    const predictBtn = document.getElementById('predict-btn');
+                    const batchBtn = document.getElementById('batch-btn');
+                    predictBtn.disabled = !data.model_loaded;
+                    batchBtn.disabled = !data.model_loaded;
+                } else {
+                    healthDiv.innerHTML = '<div class="error">❌ System is unhealthy</div>';
+                }
+            } catch (error) {
+                document.getElementById('health-status').innerHTML = 
+                    '<div class="error">❌ Cannot connect to API server</div>';
+            }
+        }
+
+        // Train model
+        document.getElementById('train-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const trainBtn = document.getElementById('train-btn');
+            const resultDiv = document.getElementById('train-result');
+            
+            trainBtn.disabled = true;
+            trainBtn.textContent = 'Training...';
+            resultDiv.innerHTML = '<div class="loading">Training model...</div>';
+            
+            const formData = new FormData();
+            
+            const spamFiles = document.getElementById('spam-files').files;
+            const hamFiles = document.getElementById('ham-files').files;
+            
+            for (let file of spamFiles) {
+                formData.append('spam_files', file);
+            }
+            for (let file of hamFiles) {
+                formData.append('ham_files', file);
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/train`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Training Successful!</h3>
+                            <div class="stats">
+                                <div class="stat-card">
+                                    <div class="stat-number">${data.training_stats.total_emails}</div>
+                                    <div class="stat-label">Total Emails</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number">${data.training_stats.spam_count}</div>
+                                    <div class="stat-label">Spam</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number">${data.training_stats.ham_count}</div>
+                                    <div class="stat-label">Ham</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Recheck health to update model status
+                    setTimeout(checkHealth, 1000);
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Training failed: ${data.detail}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                trainBtn.disabled = false;
+                trainBtn.textContent = 'Train Model';
+            }
+        });
+
+        // Single prediction
+        document.getElementById('predict-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const predictBtn = document.getElementById('predict-btn');
+            const resultDiv = document.getElementById('predict-result');
+            const emailText = document.getElementById('email-text').value;
+            
+            predictBtn.disabled = true;
+            predictBtn.textContent = 'Predicting...';
+            resultDiv.innerHTML = '<div class="loading">Making prediction...</div>';
+            
+            const formData = new FormData();
+            formData.append('email_text', emailText);
+            
+            try {
+                const response = await fetch(`${API_BASE}/predict`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const predictionClass = data.prediction === 'spam' ? 'spam' : 'ham';
+                    resultDiv.innerHTML = `
+                        <div class="result ${predictionClass}">
+                            <h3>Prediction: ${data.prediction.toUpperCase()}</h3>
+                            <p><strong>Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%</p>
+                            <p><strong>Probabilities:</strong></p>
+                            <ul>
+                                <li>Ham: ${(data.probabilities.ham * 100).toFixed(1)}%</li>
+                                <li>Spam: ${(data.probabilities.spam * 100).toFixed(1)}%</li>
+                            </ul>
+                            <p><strong>Email:</strong> ${data.email_text}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Prediction failed: ${data.detail}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                predictBtn.disabled = false;
+                predictBtn.textContent = 'Predict';
+            }
+        });
+
+        // Batch prediction
+        document.getElementById('batch-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const batchBtn = document.getElementById('batch-btn');
+            const resultDiv = document.getElementById('batch-result');
+            const emailsText = document.getElementById('batch-emails').value;
+            
+            const emails = emailsText.split('\n').filter(email => email.trim() !== '');
+            
+            if (emails.length === 0) {
+                resultDiv.innerHTML = '<div class="error">❌ Please enter at least one email</div>';
+                return;
+            }
+            
+            batchBtn.disabled = true;
+            batchBtn.textContent = 'Predicting...';
+            resultDiv.innerHTML = '<div class="loading">Making batch predictions...</div>';
+            
+            const formData = new FormData();
+            for (let email of emails) {
+                formData.append('emails', email);
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/predict-batch`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let resultsHtml = `
+                        <div class="success">
+                            <h3>✅ Batch Prediction Results (${data.total_emails} emails)</h3>
+                    `;
+                    
+                    data.predictions.forEach(pred => {
+                        const predictionClass = pred.prediction === 'spam' ? 'spam' : 'ham';
+                        resultsHtml += `
+                            <div class="result ${predictionClass}">
+                                <h4>Email ${pred.email_id + 1}: ${pred.prediction.toUpperCase()}</h4>
+                                <p><strong>Confidence:</strong> ${(pred.confidence * 100).toFixed(1)}%</p>
+                                <p><strong>Text:</strong> ${pred.email_text}</p>
+                            </div>
+                        `;
+                    });
+                    
+                    resultsHtml += '</div>';
+                    resultDiv.innerHTML = resultsHtml;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Batch prediction failed: ${data.detail}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                batchBtn.disabled = false;
+                batchBtn.textContent = 'Predict Batch';
+            }
+        });
+
+        // Check health on page load
+        checkHealth();
+    </script>
+</body>
+</html> 
