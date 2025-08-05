@@ -1,5 +1,7 @@
 import os
-from preprocess import load_and_preprocess_data
+import sys
+sys.path.append('..')
+from src.preprocess import load_and_preprocess_data
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
@@ -31,10 +33,10 @@ def train_and_save_model(spam_dir, ham_dir):
     print("✅ Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
 
     # Save model and vectorizer
-    os.makedirs("../models", exist_ok=True)
-    joblib.dump(model, "../models/classifier.pkl")
-    joblib.dump(vectorizer, "../models/vectorizer.pkl")
-    print("✅ Model and vectorizer saved to '../models/'")
+    os.makedirs("models", exist_ok=True)
+    joblib.dump(model, "models/classifier.pkl")
+    joblib.dump(vectorizer, "models/vectorizer.pkl")
+    print("✅ Model and vectorizer saved to 'models/'")
 
 if __name__ == "__main__":
     spam_path = "../data/spam"

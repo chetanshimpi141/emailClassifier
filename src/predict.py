@@ -1,11 +1,13 @@
 import joblib
 import os
-from preprocess import clean_text
+import sys
+sys.path.append('..')
+from src.preprocess import clean_text
 
 def load_model_and_vectorizer():
     """Load the trained model and vectorizer from the models directory."""
-    model_path = "../models/classifier.pkl"
-    vectorizer_path = "../models/vectorizer.pkl"
+    model_path = "models/classifier.pkl"
+    vectorizer_path = "models/vectorizer.pkl"
     
     if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
         raise FileNotFoundError("Model files not found. Please run train.py first.")

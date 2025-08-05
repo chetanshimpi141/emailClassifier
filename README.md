@@ -6,6 +6,7 @@ A machine learning-based email spam classifier built with Python, scikit-learn, 
 
 - **Text Preprocessing**: Cleans email text by removing HTML tags, URLs, email addresses, and stopwords
 - **Machine Learning Model**: Uses Multinomial Naive Bayes for classification
+- **LLM-Powered Classification**: Uses Google's Gemini models for intelligent email analysis
 - **FastAPI Web Service**: RESTful API with automatic documentation
 - **Beautiful Web Interface**: Modern, responsive HTML frontend
 - **Easy-to-use API**: Simple functions for training and prediction
@@ -13,6 +14,7 @@ A machine learning-based email spam classifier built with Python, scikit-learn, 
 - **Model Persistence**: Saves trained models for reuse
 - **File Upload Support**: Train models by uploading email files
 - **Real-time Predictions**: Instant email classification results
+- **Explainable Results**: Detailed reasons and suspicious elements for each classification
 
 ## Project Structure
 
@@ -32,7 +34,7 @@ emailClassifier/
 ├── start_server.py       # Server startup script
 ├── requirements.txt      # Python dependencies
 ├── test_email_classifier.py  # Test script
-├── test_api.py           # API test script
+├── llm_classifier/       # Gemini-based classifier
 └── README.md            # This file
 ```
 
@@ -55,19 +57,34 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Quick Start (Web Interface)
+## Quick Start (Unified Web Interface)
 
-1. Start the FastAPI server:
+1. Start the unified server (both ML and LLM):
 ```bash
-python start_server.py
+python start_unified_server.py
 ```
 
 2. Open your browser and go to: `http://localhost:8000`
 
-3. Use the web interface to:
-   - Upload spam and ham email files to train the model
-   - Classify individual emails
-   - Perform batch predictions on multiple emails
+3. Use the unified interface to:
+   - Choose between ML, LLM, or both models
+   - Compare predictions from different models
+   - See detailed explanations and confidence scores
+   - Upload training data and train models
+
+### Alternative: Individual Servers
+
+If you prefer to run servers separately:
+
+**ML Server only:**
+```bash
+python start_server.py
+```
+
+**LLM Server only:**
+```bash
+python llm_classifier/llm_api.py
+```
 
 ## API Documentation
 

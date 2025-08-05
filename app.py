@@ -35,6 +35,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 async def root():
     """Serve the main HTML page."""
+    return FileResponse("static/unified_interface.html")
+
+@app.get("/original")
+async def original_interface():
+    """Serve the original HTML page."""
     return FileResponse("static/index.html")
 
 @app.get("/api")
@@ -97,11 +102,13 @@ async def train_model(
                     with open(file_path, "wb") as buffer:
                         shutil.copyfileobj(file.file, buffer)
             
-            # Train the model
-            train_and_save_model(spam_dir, ham_dir)
+            # Train the model in thread pool to avoid blocking
+            import asyncio
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, train_and_save_model, spam_dir, ham_dir)
             
             # Load data to get statistics
-            df = load_and_preprocess_data(spam_dir, ham_dir)
+            df = await loop.run_in_executor(None, load_and_preprocess_data, spam_dir, ham_dir)
             
             return {
                 "message": "Model trained successfully",
@@ -139,7 +146,10 @@ async def predict_single_email(email_text: str = Form(...)):
                 detail="Model not trained. Please train the model first using /train endpoint."
             )
         
-        prediction, probability = predict_email(email_text)
+        # Run prediction in thread pool to avoid blocking
+        import asyncio
+        loop = asyncio.get_event_loop()
+        prediction, probability = await loop.run_in_executor(None, predict_email, email_text)
         
         return {
             "email_text": email_text[:100] + "..." if len(email_text) > 100 else email_text,
@@ -172,7 +182,10 @@ async def predict_multiple_emails(emails: List[str] = Form(...)):
                 detail="Model not trained. Please train the model first using /train endpoint."
             )
         
-        results = predict_batch(emails)
+        # Run batch prediction in thread pool to avoid blocking
+        import asyncio
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(None, predict_batch, emails)
         
         predictions = []
         for i, (email, (prediction, probability)) in enumerate(zip(emails, results)):
@@ -212,7 +225,9 @@ async def get_model_info():
         
         if model_exists:
             import joblib
-            model = joblib.load("models/classifier.pkl")
+            import asyncio
+            loop = asyncio.get_event_loop()
+            model = await loop.run_in_executor(None, joblib.load, "models/classifier.pkl")
             info["model_type"] = type(model).__name__
             info["model_params"] = str(model.get_params())
         
